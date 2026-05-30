@@ -17,8 +17,8 @@ const config: Config = {
         line: "#D8D2C4",
       },
       fontFamily: {
-        display: ["var(--font-fraunces)", "Georgia", "serif"],
-        sans: ["var(--font-inter)", "system-ui", "sans-serif"],
+        display: ["Fraunces", "Georgia", "serif"],
+        sans: ["Inter", "system-ui", "-apple-system", "sans-serif"],
       },
       boxShadow: {
         panel: "0 1px 2px rgba(26,26,26,0.06), 0 8px 24px rgba(26,26,26,0.06)",

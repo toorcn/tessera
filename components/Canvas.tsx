@@ -1,0 +1,282 @@
+"use client";
+
+import { useLayoutEffect, useRef, useState, useCallback } from "react";
+import { useStore, RATIOS } from "@/lib/store";
+import { computeLayout } from "@/lib/layout/engine";
+import { buildSlide, slidesFor } from "@/lib/layout/slide";
+import { focalToObjectPosition } from "@/lib/layout/crop";
+
+function useFitFrame(ratioW: number, ratioH: number) {
+  const ref = useRef<HTMLDivElement>(null);
+  const [size, setSize] = useState({ w: 0, h: 0 });
+  useLayoutEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    const update = () => {
+      const pad = 32;
+      const aw = el.clientWidth - pad;
+      const ah = el.clientHeight - pad;
+      if (aw <= 0 || ah <= 0) return;
+      const ratio = ratioW / ratioH;
+      let w = aw;
+      let h = w / ratio;
+      if (h > ah) {
+        h = ah;
+        w = h * ratio;
+      }
+      setSize({ w: Math.floor(w), h: Math.floor(h) });
+    };
+    update();
+    const ro = new ResizeObserver(update);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [ratioW, ratioH]);
+  return { ref, size };
+}
+
+export default function Canvas() {
+  const {
+    order,
+    photos,
+    texts,
+    frameRatio,
+    mode,
+    presetId,
+    density,
+    output,
+    perSlide,
+    currentSlide,
+    setCurrentSlide,
+    setFocal,
+    selectText,
+    selectedTextId,
+    updateText,
+  } = useStore();
+
+  const ratio = RATIOS[frameRatio];
+  const { ref, size } = useFitFrame(ratio.w, ratio.h);
+  const [selectedPhoto, setSelectedPhoto] = useState<string | null>(null);
+
+  const slides = slidesFor(order, output, perSlide);
+  const slideIndex = Math.min(currentSlide, slides.length - 1);
+  const { items, overlays } = buildSlide(order, photos, texts, output, perSlide, slideIndex);
+  const rects = computeLayout(
+    items.map((it) => ({ aspect: it.aspect })),
+    { w: ratio.w, h: ratio.h },
+    mode,
+    density,
+    presetId,
+  );
+
+  const onFocalDrag = useCallback(
+    (id: string, e: React.PointerEvent) => {
+      const target = e.currentTarget as HTMLElement;
+      const move = (ev: PointerEvent) => {
+        const r = target.getBoundingClientRect();
+        const x = Math.min(1, Math.max(0, (ev.clientX - r.left) / r.width));
+        const y = Math.min(1, Math.max(0, (ev.clientY - r.top) / r.height));
+        setFocal(id, { x, y });
+      };
+      const up = () => {
+        window.removeEventListener("pointermove", move);
+        window.removeEventListener("pointerup", up);
+      };
+      window.addEventListener("pointermove", move);
+      window.addEventListener("pointerup", up);
+    },
+    [setFocal],
+  );
+
+  const onOverlayDrag = useCallback(
+    (id: string, e: React.PointerEvent) => {
+      e.stopPropagation();
+      const frame = (e.currentTarget as HTMLElement).parentElement!;
+      const move = (ev: PointerEvent) => {
+        const r = frame.getBoundingClientRect();
+        const x = Math.min(0.98, Math.max(0.02, (ev.clientX - r.left) / r.width));
+        const y = Math.min(0.98, Math.max(0.02, (ev.clientY - r.top) / r.height));
+        updateText(id, { pos: { x, y } });
+      };
+      const up = () => {
+        window.removeEventListener("pointermove", move);
+        window.removeEventListener("pointerup", up);
+      };
+      window.addEventListener("pointermove", move);
+      window.addEventListener("pointerup", up);
+    },
+    [updateText],
+  );
+
+  const empty = items.length === 0;
+
+  return (
+    <div className="flex h-full flex-col">
+      <div
+        ref={ref}
+        className="relative flex min-h-0 flex-1 items-center justify-center p-4"
+        onClick={() => {
+          setSelectedPhoto(null);
+          selectText(undefined);
+        }}
+      >
+        {empty ? (
+          <div className="text-center">
+            <p className="font-display text-2xl text-ink">Your canvas is empty</p>
+            <p className="mt-1 text-sm text-ink-soft">Add photos from the panel to begin composing.</p>
+          </div>
+        ) : (
+          <div
+            className="relative overflow-hidden bg-ink shadow-panel"
+            style={{ width: size.w, height: size.h }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            {items.map((it, i) => {
+              const r = rects[i];
+              if (!r) return null;
+              const style = {
+                left: r.x * size.w,
+                top: r.y * size.h,
+                width: r.w * size.w + 1,
+                height: r.h * size.h + 1,
+              } as const;
+
+              if (it.kind === "text" && it.text) {
+                const t = it.text;
+                return (
+                  <div
+                    key={it.id}
+                    className="absolute flex items-center justify-center p-2 text-center"
+                    style={{
+                      ...style,
+                      background: t.color === "paper" ? "#1A1A1A" : "#F4F1EA",
+                      color: t.color === "paper" ? "#F4F1EA" : "#1A1A1A",
+                      cursor: "pointer",
+                    }}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      selectText(t.id);
+                    }}
+                  >
+                    <span
+                      className="font-display leading-tight"
+                      style={{
+                        fontSize: (t.fontSize / 100) * size.h,
+                        textAlign: t.align,
+                        outline: selectedTextId === t.id ? "2px solid #C75B39" : "none",
+                        outlineOffset: 4,
+                      }}
+                    >
+                      {t.content}
+                    </span>
+                  </div>
+                );
+              }
+
+              const p = it.photo!;
+              const selected = selectedPhoto === p.id;
+              return (
+                <div
+                  key={it.id}
+                  className="absolute"
+                  style={{ ...style, cursor: selected ? "crosshair" : "pointer" }}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setSelectedPhoto(p.id);
+                    selectText(undefined);
+                  }}
+                  onPointerDown={(e) => selected && onFocalDrag(p.id, e)}
+                >
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    src={p.previewUrl}
+                    alt=""
+                    draggable={false}
+                    loading="lazy"
+                    decoding="async"
+                    className="h-full w-full select-none object-cover"
+                    style={{ objectPosition: focalToObjectPosition(p.focal) }}
+                  />
+                  {selected && (
+                    <>
+                      <div className="pointer-events-none absolute inset-0 ring-2 ring-inset ring-clay" />
+                      <div
+                        className="pointer-events-none absolute h-4 w-4 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-paper bg-clay shadow"
+                        style={{ left: `${p.focal.x * 100}%`, top: `${p.focal.y * 100}%` }}
+                      />
+                      <div className="pointer-events-none absolute bottom-1 left-1/2 -translate-x-1/2 whitespace-nowrap rounded bg-ink/80 px-2 py-0.5 text-[10px] text-paper">
+                        drag to set the focus
+                      </div>
+                    </>
+                  )}
+                </div>
+              );
+            })}
+
+            {overlays.map((t) => (
+              <div
+                key={t.id}
+                className="absolute -translate-x-1/2 -translate-y-1/2 cursor-move select-none px-3 py-1"
+                style={{
+                  left: `${t.pos.x * 100}%`,
+                  top: `${t.pos.y * 100}%`,
+                  background: t.scrim ? "rgba(26,26,26,0.45)" : "transparent",
+                  borderRadius: 6,
+                  outline: selectedTextId === t.id ? "2px solid #C75B39" : "none",
+                  outlineOffset: 3,
+                }}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  selectText(t.id);
+                }}
+                onPointerDown={(e) => onOverlayDrag(t.id, e)}
+              >
+                <span
+                  className="font-display leading-tight"
+                  style={{
+                    fontSize: (t.fontSize / 100) * size.h,
+                    color: t.color === "paper" ? "#F4F1EA" : "#1A1A1A",
+                  }}
+                >
+                  {t.content}
+                </span>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {output === "carousel" && slides.length > 1 && (
+        <div className="flex items-center justify-center gap-3 pb-1 pt-2">
+          <button
+            className="btn-ghost px-2 py-1"
+            onClick={() => setCurrentSlide(Math.max(0, slideIndex - 1))}
+            disabled={slideIndex === 0}
+          >
+            Prev
+          </button>
+          <div className="flex items-center gap-1.5">
+            {slides.map((_, i) => (
+              <button
+                key={i}
+                aria-label={`Slide ${i + 1}`}
+                onClick={() => setCurrentSlide(i)}
+                className="h-2 w-2 rounded-full transition-colors"
+                style={{ background: i === slideIndex ? "#1A1A1A" : "#D8D2C4" }}
+              />
+            ))}
+          </div>
+          <button
+            className="btn-ghost px-2 py-1"
+            onClick={() => setCurrentSlide(Math.min(slides.length - 1, slideIndex + 1))}
+            disabled={slideIndex === slides.length - 1}
+          >
+            Next
+          </button>
+          <span className="ml-1 text-xs text-ink-soft">
+            Slide {slideIndex + 1} of {slides.length}
+          </span>
+        </div>
+      )}
+    </div>
+  );
+}
