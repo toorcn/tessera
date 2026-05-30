@@ -1,4 +1,4 @@
-@import url("https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600;9..144,700&family=Inter:wght@400;500;600&display=swap");
+@import url("https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600;9..144,700&family=Hanken+Grotesk:wght@400;500;600;700&display=swap");
 
 @tailwind base;
 @tailwind components;
@@ -6,6 +6,10 @@
 
 :root {
   color-scheme: light;
+  --paper: #f4f1ea;
+  --paper-deep: #eae5d9;
+  --ink: #1a1a1a;
+  --clay: #c75b39;
 }
 
 html,
@@ -14,54 +18,171 @@ body {
 }
 
 body {
-  background-color: #f4f1ea;
-  color: #1a1a1a;
-  font-family: "Inter", system-ui, -apple-system, sans-serif;
+  background-color: var(--paper);
+  color: var(--ink);
+  font-family: "Hanken Grotesk", system-ui, -apple-system, sans-serif;
   -webkit-font-smoothing: antialiased;
   text-rendering: optimizeLegibility;
+  font-feature-settings: "ss01";
+}
+
+/* Paper grain + faint vignette for depth. Sits above the background,
+   below content, and never intercepts pointer events. */
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.4'/%3E%3C/svg%3E");
+  opacity: 0.035;
+  mix-blend-mode: multiply;
+}
+
+#__next,
+body > div {
+  position: relative;
+  z-index: 1;
 }
 
 ::selection {
   background: rgba(199, 91, 57, 0.22);
 }
 
-/* thin, quiet scrollbars that match the paper theme */
-.scroll-quiet::-webkit-scrollbar {
+::-webkit-scrollbar {
   width: 10px;
   height: 10px;
 }
-.scroll-quiet::-webkit-scrollbar-thumb {
+::-webkit-scrollbar-thumb {
   background: #d8d2c4;
   border-radius: 999px;
-  border: 3px solid #f4f1ea;
+  border: 3px solid var(--paper);
 }
-.scroll-quiet::-webkit-scrollbar-track {
+::-webkit-scrollbar-thumb:hover {
+  background: #c9c2b0;
+}
+::-webkit-scrollbar-track {
   background: transparent;
+}
+
+@layer base {
+  /* Custom range sliders, brand-consistent across the app */
+  input[type="range"] {
+    -webkit-appearance: none;
+    appearance: none;
+    height: 4px;
+    border-radius: 999px;
+    background: #d8d2c4;
+    outline: none;
+  }
+  input[type="range"]::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    background: var(--clay);
+    border: 2px solid var(--paper);
+    box-shadow: 0 1px 3px rgba(26, 26, 26, 0.25);
+    cursor: pointer;
+    transition: transform 0.15s ease;
+  }
+  input[type="range"]::-webkit-slider-thumb:hover {
+    transform: scale(1.12);
+  }
+  input[type="range"]::-moz-range-thumb {
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    background: var(--clay);
+    border: 2px solid var(--paper);
+    cursor: pointer;
+  }
+  :focus-visible {
+    outline: 2px solid var(--clay);
+    outline-offset: 2px;
+  }
 }
 
 @layer components {
   .btn {
-    @apply inline-flex items-center justify-center gap-2 rounded-md px-3.5 py-2 text-sm font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-45;
+    @apply inline-flex items-center justify-center gap-2 rounded-md px-3.5 py-2 text-sm font-medium transition-all duration-150 disabled:cursor-not-allowed disabled:opacity-40 active:translate-y-px;
   }
   .btn-primary {
-    @apply btn bg-clay text-paper hover:bg-clay-deep;
+    @apply btn bg-clay text-paper shadow-[0_1px_2px_rgba(26,26,26,0.18)] hover:bg-clay-deep hover:shadow-[0_2px_8px_rgba(168,71,43,0.28)];
   }
   .btn-ghost {
     @apply btn text-ink-soft hover:bg-paper-deep hover:text-ink;
   }
   .btn-outline {
-    @apply btn border border-line text-ink hover:border-ink/30 hover:bg-paper-deep;
+    @apply btn border border-line bg-paper/60 text-ink hover:border-ink/25 hover:bg-paper-deep;
   }
   .field-label {
-    @apply text-[11px] font-semibold uppercase tracking-[0.14em] text-ink-soft;
+    @apply text-[10.5px] font-semibold uppercase tracking-[0.16em] text-ink-soft;
   }
   .seg {
-    @apply flex rounded-md border border-line bg-paper p-0.5;
+    @apply flex rounded-lg border border-line bg-paper-deep/60 p-0.5;
   }
   .seg button {
-    @apply flex-1 rounded-[5px] px-2.5 py-1.5 text-sm text-ink-soft transition-colors;
+    @apply flex-1 rounded-md px-2.5 py-1.5 text-sm font-medium text-ink-soft transition-all duration-150;
+  }
+  .seg button:hover {
+    @apply text-ink;
   }
   .seg button[data-active="true"] {
-    @apply bg-ink text-paper;
+    @apply bg-paper text-ink shadow-[0_1px_2px_rgba(26,26,26,0.12)];
+  }
+  .seg-tile {
+    @apply rounded-md border border-line bg-paper/60 text-ink-soft transition-all duration-150 hover:border-ink/20 hover:text-ink data-[active=true]:border-ink data-[active=true]:bg-ink data-[active=true]:text-paper data-[active=true]:shadow-[0_1px_3px_rgba(26,26,26,0.2)];
+  }
+  /* the mounted-print look for the collage */
+  .print-mount {
+    box-shadow:
+      0 0 0 1px rgba(26, 26, 26, 0.08),
+      0 2px 6px rgba(26, 26, 26, 0.08),
+      0 20px 48px -12px rgba(26, 26, 26, 0.28);
+  }
+  .tile-move {
+    transition:
+      left 0.36s cubic-bezier(0.22, 1, 0.36, 1),
+      top 0.36s cubic-bezier(0.22, 1, 0.36, 1),
+      width 0.36s cubic-bezier(0.22, 1, 0.36, 1),
+      height 0.36s cubic-bezier(0.22, 1, 0.36, 1);
+  }
+}
+
+@keyframes fade-up {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+.fade-up {
+  animation: fade-up 0.45s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+@keyframes pulse-soft {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.35;
+  }
+}
+.pulse-soft {
+  animation: pulse-soft 2.4s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    transition-duration: 0.001ms !important;
   }
 }

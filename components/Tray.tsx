@@ -15,7 +15,7 @@ import { useStore } from "@/lib/store";
 
 const MAX_PHOTOS = 50;
 
-function Thumb({ id }: { id: string }) {
+function Thumb({ id, index }: { id: string; index: number }) {
   const photo = useStore((s) => s.photos[id]);
   const removePhoto = useStore((s) => s.removePhoto);
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id });
@@ -23,9 +23,9 @@ function Thumb({ id }: { id: string }) {
   return (
     <div
       ref={setNodeRef}
-      style={{ transform: CSS.Transform.toString(transform), transition }}
-      className={`group relative aspect-square overflow-hidden rounded-md border border-line bg-paper-deep ${
-        isDragging ? "z-10 opacity-80 shadow-panel" : ""
+      style={{ transform: CSS.Transform.toString(transform), transition, animationDelay: `${Math.min(index, 24) * 22}ms` }}
+      className={`group fade-up relative aspect-square overflow-hidden rounded-md border border-line bg-paper-deep transition-shadow ${
+        isDragging ? "z-10 opacity-80 shadow-panel ring-1 ring-clay/50" : "hover:shadow-tile"
       }`}
     >
       {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -118,8 +118,8 @@ export default function Tray() {
           <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={onDragEnd}>
             <SortableContext items={order} strategy={rectSortingStrategy}>
               <div className="grid grid-cols-3 gap-2 sm:grid-cols-4 lg:grid-cols-3">
-                {order.map((id) => (
-                  <Thumb key={id} id={id} />
+                {order.map((id, i) => (
+                  <Thumb key={id} id={id} index={i} />
                 ))}
               </div>
             </SortableContext>

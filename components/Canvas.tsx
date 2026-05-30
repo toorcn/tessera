@@ -1,6 +1,6 @@
 "use client";
 
-import { useLayoutEffect, useRef, useState, useCallback } from "react";
+import { useLayoutEffect, useEffect, useRef, useState, useCallback } from "react";
 import { useStore, RATIOS } from "@/lib/store";
 import { computeLayout } from "@/lib/layout/engine";
 import { buildSlide, slidesFor } from "@/lib/layout/slide";
@@ -9,6 +9,9 @@ import { focalToObjectPosition } from "@/lib/layout/crop";
 function useFitFrame(ratioW: number, ratioH: number) {
   const ref = useRef<HTMLDivElement>(null);
   const [size, setSize] = useState({ w: 0, h: 0 });
+  const lastRef = useRef({ w: 0, h: 0 });
+  // suppress reflow animation while the container itself is resizing
+  const [animating, setAnimating] = useState(false);
   useLayoutEffect(() => {
     const el = ref.current;
     if (!el) return;
@@ -24,14 +27,23 @@ function useFitFrame(ratioW: number, ratioH: number) {
         h = ah;
         w = h * ratio;
       }
-      setSize({ w: Math.floor(w), h: Math.floor(h) });
+      const next = { w: Math.floor(w), h: Math.floor(h) };
+      if (next.w === lastRef.current.w && next.h === lastRef.current.h) return;
+      lastRef.current = next;
+      setAnimating(false);
+      setSize(next);
     };
     update();
     const ro = new ResizeObserver(update);
     ro.observe(el);
     return () => ro.disconnect();
   }, [ratioW, ratioH]);
-  return { ref, size };
+  // re-enable transitions on the frame after a resize has committed
+  useEffect(() => {
+    const id = requestAnimationFrame(() => setAnimating(true));
+    return () => cancelAnimationFrame(id);
+  }, [size]);
+  return { ref, size, animating };
 }
 
 export default function Canvas() {
@@ -54,7 +66,8 @@ export default function Canvas() {
   } = useStore();
 
   const ratio = RATIOS[frameRatio];
-  const { ref, size } = useFitFrame(ratio.w, ratio.h);
+  const { ref, size, animating } = useFitFrame(ratio.w, ratio.h);
+  const moveClass = animating ? "tile-move " : "";
   const [selectedPhoto, setSelectedPhoto] = useState<string | null>(null);
 
   const slides = slidesFor(order, output, perSlide);
@@ -120,13 +133,20 @@ export default function Canvas() {
         }}
       >
         {empty ? (
-          <div className="text-center">
-            <p className="font-display text-2xl text-ink">Your canvas is empty</p>
-            <p className="mt-1 text-sm text-ink-soft">Add photos from the panel to begin composing.</p>
+          <div className="fade-up text-center">
+            <div aria-hidden className="mx-auto mb-5 grid h-16 w-16 grid-cols-3 gap-[3px] opacity-70">
+              {[0, 1, 2, 3, 4, 5, 6, 7, 8].map((i) => (
+                <span key={i} className="rounded-[2px]" style={{ background: i % 4 === 0 ? "#C75B39" : "#D8D2C4" }} />
+              ))}
+            </div>
+            <p className="font-display text-[26px] font-medium text-ink">A blank wall, for now</p>
+            <p className="mx-auto mt-1.5 max-w-xs text-sm text-ink-soft">
+              Add your event photos and Tessera arranges them into a seamless print.
+            </p>
           </div>
         ) : (
           <div
-            className="relative overflow-hidden bg-ink shadow-panel"
+            className="relative overflow-hidden bg-ink print-mount"
             style={{ width: size.w, height: size.h }}
             onClick={(e) => e.stopPropagation()}
           >
@@ -145,9 +165,10 @@ export default function Canvas() {
                 return (
                   <div
                     key={it.id}
-                    className="absolute flex items-center justify-center p-2 text-center"
+                    className={`${moveClass}fade-up absolute flex items-center justify-center p-2 text-center`}
                     style={{
                       ...style,
+                      animationDelay: `${Math.min(i, 20) * 28}ms`,
                       background: t.color === "paper" ? "#1A1A1A" : "#F4F1EA",
                       color: t.color === "paper" ? "#F4F1EA" : "#1A1A1A",
                       cursor: "pointer",
@@ -177,8 +198,8 @@ export default function Canvas() {
               return (
                 <div
                   key={it.id}
-                  className="absolute"
-                  style={{ ...style, cursor: selected ? "crosshair" : "pointer" }}
+                  className={`${moveClass}fade-up group absolute`}
+                  style={{ ...style, animationDelay: `${Math.min(i, 20) * 28}ms`, cursor: selected ? "crosshair" : "pointer" }}
                   onClick={(e) => {
                     e.stopPropagation();
                     setSelectedPhoto(p.id);
@@ -196,6 +217,9 @@ export default function Canvas() {
                     className="h-full w-full select-none object-cover"
                     style={{ objectPosition: focalToObjectPosition(p.focal) }}
                   />
+                  {!selected && (
+                    <div className="pointer-events-none absolute inset-0 opacity-0 ring-2 ring-inset ring-clay/60 transition-opacity duration-150 group-hover:opacity-100" />
+                  )}
                   {selected && (
                     <>
                       <div className="pointer-events-none absolute inset-0 ring-2 ring-inset ring-clay" />

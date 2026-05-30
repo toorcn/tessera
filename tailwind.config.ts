@@ -18,7 +18,7 @@ const config: Config = {
       },
       fontFamily: {
         display: ["Fraunces", "Georgia", "serif"],
-        sans: ["Inter", "system-ui", "-apple-system", "sans-serif"],
+        sans: ["Hanken Grotesk", "system-ui", "-apple-system", "sans-serif"],
       },
       boxShadow: {
         panel: "0 1px 2px rgba(26,26,26,0.06), 0 8px 24px rgba(26,26,26,0.06)",
