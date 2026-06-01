@@ -5,6 +5,7 @@ import { useStore, RATIOS } from "@/lib/store";
 import { computeLayout } from "@/lib/layout/engine";
 import { buildSlide, slidesFor } from "@/lib/layout/slide";
 import { focalToObjectPosition } from "@/lib/layout/crop";
+import { gapPx, spacedRect, GAP_HEX } from "@/lib/layout/spacing";
 
 function useFitFrame(ratioW: number, ratioH: number) {
   const ref = useRef<HTMLDivElement>(null);
@@ -55,6 +56,8 @@ export default function Canvas() {
     mode,
     presetId,
     density,
+    spacing,
+    gapColor,
     output,
     perSlide,
     currentSlide,
@@ -80,6 +83,7 @@ export default function Canvas() {
     density,
     presetId,
   );
+  const gpx = gapPx(spacing, size.w);
 
   const onFocalDrag = useCallback(
     (id: string, e: React.PointerEvent) => {
@@ -146,18 +150,20 @@ export default function Canvas() {
           </div>
         ) : (
           <div
-            className="relative overflow-hidden bg-ink print-mount"
-            style={{ width: size.w, height: size.h }}
+            className="relative overflow-hidden print-mount"
+            style={{ width: size.w, height: size.h, background: GAP_HEX[gapColor] }}
             onClick={(e) => e.stopPropagation()}
           >
             {items.map((it, i) => {
               const r = rects[i];
               if (!r) return null;
+              const box = spacedRect(r, size.w, size.h, gpx);
+              const seam = gpx > 0 ? 0 : 1; // hairline overlap only in seamless mode
               const style = {
-                left: r.x * size.w,
-                top: r.y * size.h,
-                width: r.w * size.w + 1,
-                height: r.h * size.h + 1,
+                left: box.x,
+                top: box.y,
+                width: box.w + seam,
+                height: box.h + seam,
               } as const;
 
               if (it.kind === "text" && it.text) {

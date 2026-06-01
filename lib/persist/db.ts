@@ -28,6 +28,8 @@ interface Snapshot {
   mode: LayoutMode;
   presetId?: string;
   density: number;
+  spacing: number;
+  gapColor: "paper" | "white" | "ink";
   legibilityFloor: boolean;
   output: OutputMode;
   perSlide: number;
@@ -56,6 +58,8 @@ export async function saveProject(): Promise<void> {
     mode: s.mode,
     presetId: s.presetId,
     density: s.density,
+    spacing: s.spacing,
+    gapColor: s.gapColor,
     legibilityFloor: s.legibilityFloor,
     output: s.output,
     perSlide: s.perSlide,
@@ -120,6 +124,8 @@ export async function loadProject(): Promise<boolean> {
     mode: snapshot.mode,
     presetId: snapshot.presetId,
     density: snapshot.density,
+    spacing: snapshot.spacing ?? 0,
+    gapColor: snapshot.gapColor ?? "paper",
     legibilityFloor: snapshot.legibilityFloor,
     output: snapshot.output,
     perSlide: snapshot.perSlide,

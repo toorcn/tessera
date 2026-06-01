@@ -37,6 +37,8 @@ export default function Inspector() {
     mode: s.mode,
     presetId: s.presetId,
     density: s.density,
+    spacing: s.spacing,
+    gapColor: s.gapColor,
     output: s.output,
     perSlide: s.perSlide,
     multiplier: hi ? 2 : 1,
@@ -126,6 +128,42 @@ export default function Inspector() {
           </div>
         </section>
       )}
+
+      <section>
+        <div className="mb-2 flex items-center justify-between">
+          <h3 className="field-label">Spacing</h3>
+          <span className="text-xs text-ink-soft">{Math.round(s.spacing * 100)}%</span>
+        </div>
+        <input
+          type="range"
+          min={0}
+          max={1}
+          step={0.02}
+          value={s.spacing}
+          onChange={(e) => s.setSpacing(Number(e.target.value))}
+          className="w-full accent-clay"
+        />
+        <div className="mt-1 flex justify-between text-[11px] text-ink-soft">
+          <span>Seamless</span>
+          <span>Spaced</span>
+        </div>
+        {s.spacing > 0 && (
+          <div className="mt-3">
+            <span className="field-label">Gap color</span>
+            <div className="seg mt-1">
+              <button data-active={s.gapColor === "paper"} onClick={() => s.setGapColor("paper")}>
+                Paper
+              </button>
+              <button data-active={s.gapColor === "white"} onClick={() => s.setGapColor("white")}>
+                White
+              </button>
+              <button data-active={s.gapColor === "ink"} onClick={() => s.setGapColor("ink")}>
+                Ink
+              </button>
+            </div>
+          </div>
+        )}
+      </section>
 
       <section>
         <div className="flex items-center justify-between">

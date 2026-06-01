@@ -4,6 +4,7 @@
 import { computeLayout } from "@/lib/layout/engine";
 import { coverSourceRect } from "@/lib/layout/crop";
 import { buildSlide, slidesFor } from "@/lib/layout/slide";
+import { gapPx, spacedRect, GAP_HEX, type GapColor } from "@/lib/layout/spacing";
 import { RATIOS, type RatioKey, type Photo, type TextBlock, type OutputMode } from "@/lib/store";
 import type { LayoutMode } from "@/lib/layout/engine";
 
@@ -15,6 +16,8 @@ export interface RenderParams {
   mode: LayoutMode;
   presetId?: string;
   density: number;
+  spacing: number;
+  gapColor: GapColor;
   output: OutputMode;
   perSlide: number;
   multiplier: number; // 1 or 2
@@ -34,8 +37,9 @@ async function renderSlide(params: RenderParams, slideIndex: number): Promise<HT
   canvas.width = W;
   canvas.height = H;
   const ctx = canvas.getContext("2d")!;
-  ctx.fillStyle = INK;
+  ctx.fillStyle = GAP_HEX[params.gapColor];
   ctx.fillRect(0, 0, W, H);
+  const gpx = gapPx(params.spacing, W);
 
   const { items, overlays } = buildSlide(
     params.order,
@@ -56,10 +60,11 @@ async function renderSlide(params: RenderParams, slideIndex: number): Promise<HT
   for (let i = 0; i < items.length; i++) {
     const it = items[i];
     const r = rects[i];
-    const dx = r.x * W;
-    const dy = r.y * H;
-    const dw = r.w * W;
-    const dh = r.h * H;
+    const box = spacedRect(r, W, H, gpx);
+    const dx = box.x;
+    const dy = box.y;
+    const dw = box.w;
+    const dh = box.h;
 
     if (it.kind === "photo" && it.photo) {
       const bmp = await createImageBitmap(it.photo.originalBlob);

@@ -60,6 +60,8 @@ interface State {
   mode: LayoutMode;
   presetId?: string;
   density: number;
+  spacing: number; // 0..1 gap between/around tiles
+  gapColor: "paper" | "white" | "ink";
   legibilityFloor: boolean;
   output: OutputMode;
   perSlide: number;
@@ -79,6 +81,8 @@ interface State {
   setFrame: (r: RatioKey) => void;
   setMode: (m: LayoutMode, presetId?: string) => void;
   setDensity: (d: number) => void;
+  setSpacing: (s: number) => void;
+  setGapColor: (c: "paper" | "white" | "ink") => void;
   toggleFloor: () => void;
   setOutput: (o: OutputMode) => void;
   setPerSlide: (n: number) => void;
@@ -105,6 +109,8 @@ export const useStore = create<State>((set, get) => ({
   mode: "mosaic",
   presetId: undefined,
   density: 0.5,
+  spacing: 0,
+  gapColor: "paper",
   legibilityFloor: true,
   output: "single",
   perSlide: 9,
@@ -163,6 +169,8 @@ export const useStore = create<State>((set, get) => ({
   setFrame: (frameRatio) => set({ frameRatio }),
   setMode: (mode, presetId) => set({ mode, presetId }),
   setDensity: (density) => set({ density }),
+  setSpacing: (spacing) => set({ spacing: Math.min(1, Math.max(0, spacing)) }),
+  setGapColor: (gapColor) => set({ gapColor }),
   toggleFloor: () => set((s) => ({ legibilityFloor: !s.legibilityFloor })),
   setOutput: (output) => set({ output, currentSlide: 0 }),
   setPerSlide: (perSlide) => set({ perSlide: Math.max(2, Math.min(20, perSlide)) }),
