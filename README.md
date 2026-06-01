@@ -20,6 +20,11 @@ npm run build        # production build
 - **Up to 50 photos**, packed seamlessly with zero gaps.
 - **Three layouts:** Mosaic (sizes cells by orientation), Grid (square mode), and
   Spotlight (a preset hero template). Single frame by default.
+- **Spacing control:** a slider adds uniform gaps between and around the photos
+  (matted-print look), with a choice of gap color (paper, white, or ink). Zero by
+  default for a fully seamless collage.
+- **HEIC support:** iPhone photos (HEIC/HEIF) are decoded automatically; any file
+  that genuinely can't be read is reported instead of silently dropped.
 - **Face-aware cropping** so filling a cell never slices off heads. Click any photo
   on the canvas and drag to set its focus.
 - **Reorder** by dragging thumbnails, by one-click AI suggestion, or by chatting a
