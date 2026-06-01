@@ -58,17 +58,29 @@ export default function Tray() {
   const order = useStore((s) => s.order);
   const addFiles = useStore((s) => s.addFiles);
   const reorder = useStore((s) => s.reorder);
+  const uploadNotice = useStore((s) => s.uploadNotice);
+  const setUploadNotice = useStore((s) => s.setUploadNotice);
   const inputRef = useRef<HTMLInputElement>(null);
   const [loading, setLoading] = useState(false);
   const [dragOver, setDragOver] = useState(false);
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 5 } }));
 
-  const handleFiles = async (files: FileList | File[]) => {
-    const arr = Array.from(files).slice(0, Math.max(0, MAX_PHOTOS - order.length));
-    if (!arr.length) return;
+  const handleFiles = async (incoming: File[]) => {
+    const room = Math.max(0, MAX_PHOTOS - order.length);
+    const arr = incoming.slice(0, room);
+    const overflow = incoming.length - arr.length;
+    if (!arr.length) {
+      setUploadNotice(overflow > 0 ? `You can add up to ${MAX_PHOTOS} photos.` : undefined);
+      return;
+    }
+    setUploadNotice(undefined);
     setLoading(true);
-    await addFiles(arr);
+    const { failed } = await addFiles(arr);
     setLoading(false);
+    const parts: string[] = [];
+    if (failed.length) parts.push(`${failed.length} ${failed.length === 1 ? "file" : "files"} could not be read`);
+    if (overflow > 0) parts.push(`${overflow} skipped (${MAX_PHOTOS} max)`);
+    setUploadNotice(parts.length ? parts.join(" · ") : undefined);
   };
 
   const onDragEnd = (e: DragEndEvent) => {
@@ -103,7 +115,7 @@ export default function Tray() {
         onDrop={(e) => {
           e.preventDefault();
           setDragOver(false);
-          handleFiles(e.dataTransfer.files);
+          handleFiles(Array.from(e.dataTransfer.files));
         }}
       >
         {order.length === 0 ? (
@@ -133,15 +145,25 @@ export default function Tray() {
         )}
       </div>
 
+      {uploadNotice && (
+        <div className="mt-2 flex items-start justify-between gap-2 rounded-md border border-clay/40 bg-clay/10 px-2.5 py-1.5 text-[11px] text-clay-deep">
+          <span>{uploadNotice}</span>
+          <button onClick={() => setUploadNotice(undefined)} aria-label="Dismiss" className="shrink-0 font-semibold">
+            x
+          </button>
+        </div>
+      )}
+
       <input
         ref={inputRef}
         type="file"
-        accept="image/*"
+        accept="image/*,.heic,.heif"
         multiple
         className="hidden"
         onChange={(e) => {
-          if (e.target.files) handleFiles(e.target.files);
+          const picked = e.target.files ? Array.from(e.target.files) : [];
           e.target.value = "";
+          if (picked.length) handleFiles(picked);
         }}
       />
       <p className="px-1 pt-2 text-[11px] text-ink-soft">Drag thumbnails to reorder. Click a photo on the canvas to set its focus.</p>

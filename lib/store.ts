@@ -2,7 +2,7 @@
 
 import { create } from "zustand";
 import type { LayoutMode } from "@/lib/layout/engine";
-import { processFile } from "@/lib/image/pipeline";
+import { processFile, isHeic } from "@/lib/image/pipeline";
 
 export type RatioKey = "1:1" | "4:5" | "5:4" | "9:16" | "16:9";
 
@@ -70,8 +70,10 @@ interface State {
   aiError?: string;
   analyzing: boolean;
   hydrated: boolean;
+  uploadNotice?: string;
 
-  addFiles: (files: File[]) => Promise<void>;
+  addFiles: (files: File[]) => Promise<{ added: number; failed: string[] }>;
+  setUploadNotice: (notice?: string) => void;
   removePhoto: (id: string) => void;
   reorder: (order: string[]) => void;
   setFrame: (r: RatioKey) => void;
@@ -115,8 +117,14 @@ export const useStore = create<State>((set, get) => ({
   hydrated: false,
 
   addFiles: async (files) => {
+    let added = 0;
+    const failed: string[] = [];
     for (const file of files) {
-      if (!file.type.startsWith("image/")) continue;
+      const looksImage = file.type.startsWith("image/") || isHeic(file) || file.type === "";
+      if (!looksImage) {
+        failed.push(file.name);
+        continue;
+      }
       try {
         const result = await processFile(file);
         const id = uid();
@@ -125,17 +133,22 @@ export const useStore = create<State>((set, get) => ({
           name: file.name,
           hash: result.hash,
           previewUrl: result.previewUrl,
-          originalBlob: file,
+          originalBlob: result.exportBlob, // decodable (HEIC converted to JPEG)
           width: result.width,
           height: result.height,
           focal: result.focal,
         };
         set((s) => ({ photos: { ...s.photos, [id]: photo }, order: [...s.order, id] }));
+        added++;
       } catch (e) {
         console.error("Failed to process", file.name, e);
+        failed.push(file.name);
       }
     }
+    return { added, failed };
   },
+
+  setUploadNotice: (uploadNotice) => set({ uploadNotice }),
 
   removePhoto: (id) =>
     set((s) => {
